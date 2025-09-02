@@ -1,0 +1,16 @@
+/var/
+/vendor/
+/node_modules/
+/public/build/
+/public/bundles/
+.env
+.env.local
+.env.*.local
+.env.local.php
+.phpunit.result.cache
+/.idea/
+/.vscode/
+.DS_Store
+config/jwt/*.pem
+config/secrets/*/*.key
+config/secrets/*/secrets.*.decrypt.private.php
