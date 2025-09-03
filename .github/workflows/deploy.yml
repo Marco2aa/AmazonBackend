@@ -61,12 +61,15 @@ jobs:
       - name: Prepare SSH folder
         run: |
           install -m 700 -d ~/.ssh
+          touch ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
       - name: Add EC2 host key
         run: |
-          ssh-keyscan -T 10 -H ${{ secrets.EC2_HOST }} 2>/dev/null | tee -a ~/.ssh/known_hosts >/dev/null
-          chmod 644 ~/.ssh/known_hosts
-
+          ssh-keyscan -T 10 -H "${{ secrets.EC2_HOST }}" 2>/dev/null | tee -a ~/.ssh/known_hosts >/dev/null
+      - name: Check ~/.ssh
+        run: ls -la ~/.ssh
+        
       - name: Upload tarball to EC2
         run: |
           scp -o StrictHostKeyChecking=accept-new ${RELEASE}.tar.gz \
