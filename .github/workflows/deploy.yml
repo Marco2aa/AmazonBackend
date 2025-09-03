@@ -21,7 +21,11 @@ jobs:
           coverage: none
 
       - name: Composer install (prod)
-        run: composer install --no-dev --prefer-dist --no-progress --optimize-autoloader
+        env:
+          COMPOSER_MEMORY_LIMIT: -1
+          SYMFONY_SKIP_AUTO_SCRIPTS: 1
+          APP_ENV: prod
+        run: composer install --no-dev --prefer-dist --no-progress --optimize-autoloader --no-scripts
 
       # Décommente si tu as des assets à builder (Vite/Webpack)
       # - name: Setup Node
