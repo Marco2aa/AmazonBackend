@@ -57,6 +57,15 @@ jobs:
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+      
+      - name: Prepare SSH folder
+        run: |
+          install -m 700 -d ~/.ssh
+
+      - name: Add EC2 host key
+        run: |
+          ssh-keyscan -T 10 -H ${{ secrets.EC2_HOST }} 2>/dev/null | tee -a ~/.ssh/known_hosts >/dev/null
+          chmod 644 ~/.ssh/known_hosts
 
       - name: Upload tarball to EC2
         run: |
