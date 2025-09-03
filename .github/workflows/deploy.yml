@@ -1,9 +1,9 @@
-name: Deploy to EC2 (no Docker)
+name: Deploy to EC2 (no Docker, lax SSH)
 
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   deploy:
@@ -27,15 +27,6 @@ jobs:
           APP_ENV: prod
         run: composer install --no-dev --prefer-dist --no-progress --optimize-autoloader --no-scripts
 
-      # Décommente si tu as des assets à builder (Vite/Webpack)
-      # - name: Setup Node
-      #   uses: actions/setup-node@v4
-      #   with: { node-version: '20' }
-      # - name: Build assets
-      #   run: |
-      #     npm ci
-      #     npm run build
-
       - name: Pack release
         run: |
           RELEASE="release-${{ github.sha }}"
@@ -44,38 +35,31 @@ jobs:
             --exclude ".git" --exclude ".github" \
             --exclude "node_modules" \
             --exclude "var" \
-            ./. .deploy/$RELEASE/
-          # NE PAS embarquer les secrets locaux
+            ./ .deploy/$RELEASE/
+          # Ne JAMAIS embarquer vos .env locaux/secrets
           rm -f .deploy/$RELEASE/.env* || true
           tar -czf $RELEASE.tar.gz -C .deploy $RELEASE
           echo "RELEASE=$RELEASE" >> $GITHUB_ENV
 
-      - name: Add EC2 host key
-        run: ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-
-      - name: Start ssh-agent
+      - name: Start ssh-agent and load key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
-      
-      - name: Prepare SSH folder
-        run: |
-          install -m 700 -d ~/.ssh
-          touch ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
 
-      - name: Add EC2 host key
+      - name: Ensure remote dirs
         run: |
-          ssh-keyscan -T 10 -H "${{ secrets.EC2_HOST }}" 2>/dev/null | tee -a ~/.ssh/known_hosts >/dev/null
-      - name: Check ~/.ssh
-        run: ls -la ~/.ssh
-        
+          ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            'mkdir -p /var/www/aflokkat-marc.store/releases'
+
       - name: Upload tarball to EC2
         run: |
-          scp -o StrictHostKeyChecking=accept-new ${RELEASE}.tar.gz \
+          scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
+            ${RELEASE}.tar.gz \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/aflokkat-marc.store/releases/
 
       - name: Remote deploy switch
         run: |
-          ssh -o StrictHostKeyChecking=accept-new ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+          ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
             "/var/www/aflokkat-marc.store/deploy_switch.sh /var/www/aflokkat-marc.store/releases/${RELEASE}.tar.gz"
