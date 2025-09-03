@@ -59,9 +59,11 @@ jobs:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
       - name: Upload tarball to EC2
-        run: scp ${RELEASE}.tar.gz ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/aflokkat-marc.store/releases/
+        run: |
+          scp -o StrictHostKeyChecking=accept-new ${RELEASE}.tar.gz \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/aflokkat-marc.store/releases/
 
       - name: Remote deploy switch
         run: |
-          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+          ssh -o StrictHostKeyChecking=accept-new ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
             "/var/www/aflokkat-marc.store/deploy_switch.sh /var/www/aflokkat-marc.store/releases/${RELEASE}.tar.gz"
