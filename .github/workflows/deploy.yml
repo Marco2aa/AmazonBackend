@@ -26,11 +26,11 @@ jobs:
           APP_ENV: prod
         run: composer install --no-dev --prefer-dist --no-progress --optimize-autoloader --no-scripts
 
-        - name: Debug workspace
-          run: |
-            pwd && ls -la
-            echo "git root:"
-            git rev-parse --show-toplevel
+      - name: Debug workspace
+        run: |
+          pwd && ls -la
+          echo "git root:"
+          git rev-parse --show-toplevel
 
       - name: Pack release (explicit + sanity checks)
         run: |
