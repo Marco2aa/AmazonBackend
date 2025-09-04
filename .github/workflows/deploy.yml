@@ -26,16 +26,34 @@ jobs:
           APP_ENV: prod
         run: composer install --no-dev --prefer-dist --no-progress --optimize-autoloader --no-scripts
 
-      - name: Pack release
+        - name: Debug workspace
+          run: |
+            pwd && ls -la
+            echo "git root:"
+            git rev-parse --show-toplevel
+
+      - name: Pack release (explicit + sanity checks)
         run: |
           RELEASE="release-${{ github.sha }}"
           mkdir -p .deploy/$RELEASE
-          rsync -a \
-            --exclude ".git" --exclude ".github" \
-            --exclude "node_modules" \
-            --exclude "var" \
-            ./ .deploy/$RELEASE/
+
+          # Copie EXPLICITE des éléments nécessaires
+          for p in bin config migrations public src vendor composer.json composer.lock symfony.lock; do
+            if [ -e "$p" ]; then
+              rsync -a "$p" .deploy/$RELEASE/
+            fi
+          done
+
+          # Ne JAMAIS embarquer les .env locaux
           rm -f .deploy/$RELEASE/.env* || true
+
+          echo "=== Contenu avant tar ==="
+          (cd .deploy/$RELEASE && ls -la && echo "bin:" && ls -la bin 2>/dev/null || true && echo "public:" && ls -la public 2>/dev/null || true)
+
+          # Sanity checks : on stoppe si release invalide
+          test -f .deploy/$RELEASE/public/index.php
+          test -f .deploy/$RELEASE/bin/console
+
           tar -czf $RELEASE.tar.gz -C .deploy $RELEASE
           echo "RELEASE=$RELEASE" >> $GITHUB_ENV
 
