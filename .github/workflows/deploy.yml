@@ -1,4 +1,4 @@
-name: Deploy to EC2 (no Docker, lax SSH)
+name: Deploy to EC2 (simple SSH)
 
 on:
   push:
@@ -8,7 +8,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,35 +35,41 @@ jobs:
             --exclude "node_modules" \
             --exclude "var" \
             ./ .deploy/$RELEASE/
-          # Ne JAMAIS embarquer vos .env locaux/secrets
           rm -f .deploy/$RELEASE/.env* || true
           tar -czf $RELEASE.tar.gz -C .deploy $RELEASE
           echo "RELEASE=$RELEASE" >> $GITHUB_ENV
 
-      - name: Start ssh-agent and load key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+      # Écrit la clé privée depuis le secret (en supprimant d'éventuels \r Windows)
+      - name: Write SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf "%s" "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
 
+      # Test simple : si ça passe, la suite passera
       - name: SSH self-test
         run: |
           ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'echo OK-from-EC2'
-            
+              -i ~/.ssh/deploy_key \
+              ubuntu@${{ secrets.EC2_HOST }} 'echo OK-from-EC2 && whoami && hostname'
+
       - name: Ensure remote dirs
         run: |
           ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
-            'mkdir -p /var/www/aflokkat-marc.store/releases'
+              -i ~/.ssh/deploy_key \
+              ubuntu@${{ secrets.EC2_HOST }} \
+              'mkdir -p /var/www/aflokkat-marc.store/releases'
 
       - name: Upload tarball to EC2
         run: |
           scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
-            ${RELEASE}.tar.gz \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/aflokkat-marc.store/releases/
+              -i ~/.ssh/deploy_key \
+              ${RELEASE}.tar.gz \
+              ubuntu@${{ secrets.EC2_HOST }}:/var/www/aflokkat-marc.store/releases/
 
       - name: Remote deploy switch
         run: |
           ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
-            "/var/www/aflokkat-marc.store/deploy_switch.sh /var/www/aflokkat-marc.store/releases/${RELEASE}.tar.gz"
+              -i ~/.ssh/deploy_key \
+              ubuntu@${{ secrets.EC2_HOST }} \
+              "/var/www/aflokkat-marc.store/deploy_switch.sh /var/www/aflokkat-marc.store/releases/${RELEASE}.tar.gz"
