@@ -40,7 +40,7 @@ jobs:
           echo "RELEASE=$RELEASE" >> $GITHUB_ENV
 
       # Écrit la clé privée depuis le secret (en supprimant d'éventuels \r Windows)
-      - name: Write SSH key
+      - name: Write SSH key (strip CR)
         run: |
           mkdir -p ~/.ssh
           printf "%s" "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key
