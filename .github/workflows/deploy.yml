@@ -40,13 +40,14 @@ jobs:
           echo "RELEASE=$RELEASE" >> $GITHUB_ENV
 
       # Écrit la clé privée depuis le secret (en supprimant d'éventuels \r Windows)
-      - name: Write SSH key (strip CR)
+    # écrit la clé privée depuis le secret Base64
+      - name: Write SSH key (from base64)
         run: |
           mkdir -p ~/.ssh
-          printf "%s" "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key
+          echo "${{ secrets.EC2_SSH_KEY_B64 }}" | base64 -d > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
-      # Test simple : si ça passe, la suite passera
+      # auto-test de connexion (si ça passe, tout passe)
       - name: SSH self-test
         run: |
           ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
